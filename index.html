@@ -1,0 +1,64 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Client First Leaderboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0b0f17;color:#f2f4f8;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow:hidden}
+body{display:flex;flex-direction:column;padding:2.2vh 2.5vw;gap:2vh}
+header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:.4vh solid #c9a24a;padding-bottom:1.2vh}
+.brand h1{font-size:5vh;letter-spacing:.15em;color:#c9a24a;font-weight:800}
+.brand p{font-size:2.2vh;color:#9aa4b5;letter-spacing:.08em}
+.title{font-size:4.2vh;font-weight:800;text-align:right}
+.upd{font-size:2.1vh;color:#9aa4b5;text-align:right}
+main{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:1.6vw;min-height:0}
+.card{background:#141b27;border-radius:1.6vh;padding:2vh 1.2vw;display:flex;flex-direction:column;gap:1vh;min-height:0}
+.card h2{font-size:3.4vh;color:#c9a24a;letter-spacing:.1em;text-align:center;margin-bottom:.8vh}
+.row{flex:1;display:flex;align-items:center;gap:.8vw;background:#1c2433;border-radius:1.2vh;padding:0 1vw;min-height:0}
+.rk{font-size:4.5vh;font-weight:800;width:2.2em;color:#9aa4b5}
+.nm{flex:1;font-size:3.1vh;font-weight:600;line-height:1.1}
+.val{font-size:3.6vh;font-weight:800;white-space:nowrap}
+.first{background:linear-gradient(90deg,#c9a24a,#8a6a22);color:#0b0f17}
+.first .rk{color:#0b0f17}
+.goal{flex-direction:column;align-items:stretch;justify-content:center;padding:.6vh 1vw;gap:.6vh}
+.goal .top{display:flex;justify-content:space-between;align-items:baseline}
+.bar{height:1.6vh;background:#2c3648;border-radius:1vh;overflow:hidden}
+.bar i{display:block;height:100%;background:#3fb27f}
+.goal .val{font-size:3vh}
+.msg{grid-column:1/-1;display:flex;align-items:center;justify-content:center;font-size:4vh;color:#9aa4b5;text-align:center;padding:4vw}
+</style></head><body>
+<header><div class="brand"><h1>CLIENT FIRST</h1><p>REAL ESTATE ADVISORS &nbsp;|&nbsp; Brokered by Done Deal Realty</p></div>
+<div><div class="title">2026 LEADERBOARD</div><div class="upd" id="upd">Loading…</div></div></header>
+<main id="main"><div class="msg">Loading leaderboard…</div></main>
+<script>
+// Published-to-web CSV of the "Team Summary" tab (gid 230631380). Override with ?csv=<url>.
+// Paste the URL from File > Share > Publish to web > "Team Summary" > CSV here:
+var CSV_URL = "https://docs.google.com/spreadsheets/d/140EcXn8gnWJ20f__5bAsglkk3KAxYCtxcsMXGf3vGA8/pub?gid=230631380&single=true&output=csv";
+var q=new URLSearchParams(location.search); if(q.get("csv")) CSV_URL=q.get("csv");
+var REFRESH_MS=15*60*1000;
+function parseCSV(t){var r=[],row=[],f="",i=0,q=false;for(;i<t.length;i++){var c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=c}else if(c=='"')q=true;else if(c==','){row.push(f);f=""}else if(c=='\n'||c=='\r'){if(c=='\r'&&t[i+1]=='\n')i++;row.push(f);r.push(row);row=[];f=""}else f+=c}if(f!==""||row.length){row.push(f);r.push(row)}return r}
+function num(s){if(s==null)return NaN;s=String(s).replace(/[$,\s]/g,"");if(s==="")return NaN;return Number(s)}
+function money(n){return "$"+Math.round(n).toLocaleString("en-US")}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function board(title,agents,key,fmt){var a=agents.filter(function(x){return!isNaN(x[key])}).sort(function(x,y){return y[key]-x[key]});
+ return '<section class="card"><h2>'+title+'</h2>'+a.map(function(x,i){return '<div class="row'+(i==0?' first':'')+'"><span class="rk">'+(i+1)+'</span><span class="nm">'+esc(x.name)+'</span><span class="val">'+fmt(x[key])+'</span></div>'}).join("")+'</section>'}
+function goals(agents){var a=agents.slice().sort(function(x,y){return y.units-x.units});
+ return '<section class="card"><h2>UNITS vs GOAL</h2>'+a.map(function(x){var g=x.goal,has=!isNaN(g)&&g>0,p=has?Math.min(100,x.units/g*100):0;
+ return '<div class="row goal"><div class="top"><span class="nm">'+esc(x.name)+'</span><span class="val">'+x.units+(has?' / '+g:' <small style="font-size:2vh;color:#9aa4b5">no goal set</small>')+'</span></div>'+(has?'<div class="bar"><i style="width:'+p.toFixed(1)+'%"></i></div>':'')+'</div>'}).join("")+'</section>'}
+function phx(d){return d.toLocaleString("en-US",{timeZone:"America/Phoenix",weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})+" AZ"}
+function load(){fetch(CSV_URL+(CSV_URL.indexOf("?")>-1?"&":"?")+"_="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.text()}).then(function(t){
+ if(/^\s*</.test(t))throw new Error("Sheet tab not published as CSV");
+ var rows=parseCSV(t),h=-1;for(var i=0;i<rows.length;i++){if((rows[i][0]||"").trim()==="Agent"){h=i;break}}
+ if(h<0)throw new Error("Header row not found");
+ var H=rows[h].map(function(s){return s.trim()}),ix=function(n){return H.indexOf(n)};
+ var cN=ix("Agent"),cG=ix("Closed GCI"),cU=ix("Closed Units"),cV=ix("Total Volume"),cGo=ix("Units Goal");
+ if([cG,cU,cV].indexOf(-1)>-1)throw new Error("Expected columns missing");
+ var ag=[];for(i=h+1;i<rows.length;i++){var n=(rows[i][cN]||"").trim();if(!n||/total/i.test(n))break;
+  ag.push({name:n,gci:num(rows[i][cG]),units:num(rows[i][cU]),vol:num(rows[i][cV]),goal:cGo>-1?num(rows[i][cGo]):NaN})}
+ if(!ag.length)throw new Error("No agent rows");
+ document.getElementById("main").innerHTML=board("VOLUME",ag,"vol",money)+board("UNITS CLOSED",ag,"units",String)+board("CLOSED GCI",ag,"gci",money)+goals(ag);
+ document.getElementById("upd").textContent="Last updated "+phx(new Date());
+ }).catch(function(e){var m=document.getElementById("main");
+  if(!m.querySelector(".card"))m.innerHTML='<div class="msg">Leaderboard data unavailable ('+esc(e.message)+'). Retrying in 15 minutes.</div>';
+  else document.getElementById("upd").textContent+=" · refresh failed, showing last data";})}
+load();setInterval(load,REFRESH_MS);
+setTimeout(function(){location.reload()},6*3600*1000);
+</script></body></html>
